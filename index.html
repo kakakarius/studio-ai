@@ -250,10 +250,40 @@ textarea:focus { outline: none; border-color: var(--accent); }
 
 /* 클립보드 안내 */
 .paste-hint { font-size: 11px; color: var(--muted); text-align: center; margin-top: 6px; }
+
+.preset-btn { position: relative; }
+.pose-tooltip {
+  position: fixed;
+  background: #1a1a2e;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  padding: 6px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 9000;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  text-align: center;
+}
+.pose-tooltip img {
+  width: 100px; height: 140px;
+  object-fit: cover;
+  border-radius: 6px;
+  display: block;
+}
+.pose-tooltip .tip-label {
+  font-size: 11px; color: #c084fc;
+  margin-top: 5px; padding: 0 4px;
+  max-width: 100px;
+  white-space: normal;
+  line-height: 1.3;
+}
+.pose-tooltip.on { opacity: 1; }
 </style>
 </head>
 <body>
 
+<div class="pose-tooltip" id="poseTooltip"><img id="tooltipImg" src=""><div class="tip-label" id="tooltipLabel"></div></div>
 <div class="zoom-overlay" id="zoomOverlay" onclick="closeZoom()">
   <img id="zoomImg" src="">
 </div>
@@ -617,10 +647,37 @@ function renderTabs() {
 }
 function selTab(t) { activeTab = t; renderTabs(); renderPresets(t); }
 function renderPresets(tab) {
-  $('presets').innerHTML = CATS[tab].map(p =>
-    `<button class="preset-btn${selectedTags.has(p.tag)?' on':''}" onclick="selPreset('${p.tag.replace(/'/g,"\\'")}',this)">${p.label}</button>`
-  ).join('');
+  $('presets').innerHTML = CATS[tab].map(p => {
+    const imgKey = p.tag.split(',')[0].trim().replace(/\s+/g, '+');
+    return `<button class="preset-btn${selectedTags.has(p.tag)?' on':''}" 
+      onclick="selPreset('${p.tag.replace(/'/g,"\\'")}',this)"
+      onmouseenter="showPoseTip(event,'${imgKey}','${p.label}')"
+      onmouseleave="hidePoseTip()"
+    >${p.label}</button>`;
+  }).join('');
 }
+
+function showPoseTip(e, imgKey, label) {
+  const t = $('poseTooltip');
+  const img = $('tooltipImg');
+  $('tooltipLabel').textContent = label;
+  img.src = 'https://source.unsplash.com/100x140/?' + imgKey + ',woman,pose';
+  t.classList.add('on');
+  moveTip(e);
+}
+function moveTip(e) {
+  const t = $('poseTooltip');
+  const x = e.clientX + 14;
+  const y = e.clientY - 80;
+  t.style.left = Math.min(x, window.innerWidth - 130) + 'px';
+  t.style.top = Math.max(y, 8) + 'px';
+}
+function hidePoseTip() {
+  $('poseTooltip').classList.remove('on');
+}
+document.addEventListener('mousemove', e => {
+  if ($('poseTooltip').classList.contains('on')) moveTip(e);
+});
 function selPreset(tag, el) {
   if (selectedTags.has(tag)) { selectedTags.delete(tag); el.classList.remove('on'); }
   else { selectedTags.add(tag); el.classList.add('on'); }
@@ -637,6 +694,9 @@ function readFile(file) {
     faceDataUrl = e.target.result;
     $('facePreview').src = faceDataUrl; $('facePreview').style.display = 'block';
     $('uploadPh').style.display = 'none';
+    // 같은 파일 재선택 가능하게 input 초기화
+    const inp = $('faceBox').querySelector('input[type=file]');
+    if (inp) inp.value = '';
   };
   reader.readAsDataURL(file);
 }
