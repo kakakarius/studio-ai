@@ -685,16 +685,23 @@ function renderTabs() {
   ).join('');
 }
 function selTab(t) { activeTab = t; renderTabs(); renderPresets(t); }
+function hashTag(tag) {
+  let h = 0;
+  for (let i = 0; i < tag.length; i++) h = (Math.imul(31, h) + tag.charCodeAt(i)) | 0;
+  return Math.abs(h).toString(36);
+}
+
 function renderPresets(tab) {
   $('presets').innerHTML = CATS[tab].map(p => {
-    const tagKey = btoa(encodeURIComponent(p.tag)).slice(0, 20);
+    const tagKey = hashTag(p.tag);
     const thumbUrl = poseThumbs[tagKey] || '';
     const desc = (p.desc || p.tag.split(',').slice(0,2).join(', ')).replace(/'/g, '');
+    const safeTag = p.tag.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     const thumbHtml = thumbUrl
-      ? `<img class="preset-thumb" src="${thumbUrl}" onclick="event.stopPropagation();selPreset('${p.tag.replace(/'/g,"\\'")}',this.closest('button'))">`
-      : `<div class="preset-thumb-ph" onclick="event.stopPropagation();genThumb('${p.tag.replace(/'/g,"\\'")}','${tagKey}')">＋</div>`;
+      ? `<img class="preset-thumb" src="${thumbUrl}" onclick="event.stopPropagation();selPreset('${safeTag}',this.closest('button'))">`
+      : `<div class="preset-thumb-ph" onclick="event.stopPropagation();genThumb('${safeTag}','${tagKey}')">＋</div>`;
     return `<button class="preset-btn${selectedTags.has(p.tag)?' on':''}" 
-      onclick="selPreset('${p.tag.replace(/'/g,"\\'")}',this)"
+      onclick="selPreset('${safeTag}',this)"
       onmouseenter="showPoseTip(event,'${p.label}','${desc}')"
       onmouseleave="hidePoseTip()"
     >${thumbHtml}<span class="preset-btn-label">${p.label}</span></button>`;
@@ -855,8 +862,12 @@ function dl(url) {
     a.download = 'studio_' + Date.now() + '.png'; a.click();
   }).catch(()=> window.open(url, '_blank'));
 }
-function openZoom(url) { $('zoomImg').src = url; $('zoomOverlay').classList.add('on'); }
-function closeZoom() { $('zoomOverlay').classList.remove('on'); }
+function openZoom(url) {
+  $('zoomImg').src = '';
+  setTimeout(() => { $('zoomImg').src = url; }, 10);
+  $('zoomOverlay').classList.add('on');
+}
+function closeZoom() { $('zoomOverlay').classList.remove('on'); $('zoomImg').src = ''; }
 function useAsSource(url, idx) {
   idx = idx !== undefined ? idx : (faceDataUrls[0] ? 1 : 0);
   idx = Math.min(idx, 1);
@@ -891,7 +902,7 @@ function toggleFav(url) {
   if (idx >= 0) favorites.splice(idx, 1);
   else favorites.unshift(url);
   localStorage.setItem('studioFavs', JSON.stringify(favorites));
-  if (currentGallery === 'favorites') renderSaved();
+  renderSaved();
 }
 
 // 섹션 토글
