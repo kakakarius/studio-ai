@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Studio AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080808;
+  --surface: #111;
+  --surface2: #161616;
+  --border: #1e1e1e;
+  --border2: #252525;
+  --text: #d8d8d8;
+  --muted: #555;
+  --muted2: #3a3a3a;
+  --accent: #7c6af7;
+  --accent2: #5a4de0;
+  --on-accent: #fff;
+  --danger: #c44;
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+/* ── 레이아웃 ── */
+.app { display: grid; grid-template-columns: 340px 1fr; min-height: 100vh; }
+
+/* ── 사이드바 ── */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+.logo {
+  padding: 22px 20px 18px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.logo::before {
+  content: '';
+  width: 6px; height: 6px;
+  background: var(--accent);
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.section { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+.section-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+/* ── 업로드 ── */
+.upload-area {
+  border: 1px dashed var(--border2);
+  border-radius: var(--radius);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.15s;
+  background: var(--surface2);
+}
+.upload-area:hover { border-color: var(--accent); }
+.upload-area input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.upload-placeholder {
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+.upload-placeholder .icon { font-size: 20px; margin-bottom: 6px; }
+.upload-preview {
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  display: none;
+  background: #000;
+}
+
+/* ── 프리셋 탭 ── */
+.tab-scroll {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.ptab {
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: transparent;
+  border: 1px solid var(--border2);
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.12s;
+  font-family: inherit;
+}
+.ptab:hover { border-color: var(--muted2); color: var(--text); }
+.ptab.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+
+.preset-grid { display: flex; flex-wrap: wrap; gap: 5px; }
+.preset-btn {
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  font-size: 12px;
+  color: #888;
+  cursor: pointer;
+  transition: all 0.12s;
+  font-family: inherit;
+}
+.preset-btn:hover { border-color: var(--muted2); color: var(--text); }
+.preset-btn.on { background: rgba(124,106,247,0.15); border-color: var(--accent); color: #b0a8ff; }
+
+/* ── 텍스트 입력 ── */
+textarea, input[type=password], input[type=text] {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  line-height: 1.5;
+  resize: vertical;
+  transition: border-color 0.12s;
+}
+textarea { min-height: 90px; }
+textarea:focus, input:focus { outline: none; border-color: var(--accent); }
+::placeholder { color: var(--muted); }
+
+/* ── 배치 ── */
+.batch-row { display: flex; gap: 6px; }
+.batch-btn {
+  flex: 1;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  color: #666;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.12s;
+}
+.batch-btn.on { background: rgba(124,106,247,0.15); border-color: var(--accent); color: #b0a8ff; }
+
+/* ── 생성 버튼 ── */
+.gen-btn {
+  width: 100%;
+  padding: 13px;
+  border-radius: var(--radius);
+  background: var(--accent);
+  border: none;
+  color: var(--on-accent);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+  letter-spacing: 0.02em;
+}
+.gen-btn:hover { background: var(--accent2); }
+.gen-btn:disabled { background: var(--border2); color: var(--muted); cursor: not-allowed; }
+
+/* ── 메인 영역 ── */
+.main { padding: 24px; overflow-y: auto; }
+
+.main-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.main-title { font-size: 13px; color: var(--muted); }
+
+/* ── 결과 슬롯 ── */
+.result-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 28px; }
+.slot {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.slot img { width: 100%; display: block; cursor: zoom-in; }
+.slot-empty { color: var(--border2); font-size: 13px; }
+.slot-status { font-size: 12px; color: var(--muted); padding: 12px; text-align: center; }
+.slot-progress {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--border);
+}
+.slot-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+  transition: width 0.5s;
+}
+
+.slot-actions {
+  position: absolute;
+  bottom: 10px; left: 0; right: 0;
+  display: none;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+}
+.slot:hover .slot-actions { display: flex; }
+.slot-action-btn {
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.12s;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.75);
+  color: #ddd;
+  backdrop-filter: blur(4px);
+}
+.slot-action-btn.primary {
+  background: rgba(124,106,247,0.85);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* ── 저장 갤러리 ── */
+.gallery-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.gallery-title { font-size: 12px; color: var(--muted); letter-spacing: 0.08em; }
+.clear-btn {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid var(--border2);
+  color: var(--danger);
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.clear-btn:hover { background: rgba(204,68,68,0.1); }
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.gallery-item {
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  position: relative;
+  aspect-ratio: 2/3;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  cursor: zoom-in;
+}
+.gallery-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gallery-item-actions {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 8px;
+}
+.gallery-item:hover .gallery-item-actions { display: flex; }
+.gi-btn {
+  width: 100%;
+  padding: 5px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(0,0,0,0.6);
+  color: #ddd;
+  text-align: center;
+}
+.gi-btn.primary { background: rgba(124,106,247,0.85); border-color: var(--accent); color: #fff; }
+.gi-btn.danger { border-color: rgba(204,68,68,0.5); color: #f88; }
+
+/* ── 줌 오버레이 ── */
+.zoom-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.95);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+}
+.zoom-overlay.on { display: flex; }
+.zoom-overlay img { max-width: 90vw; max-height: 90vh; object-fit: contain; border-radius: var(--radius); }
+
+/* ── 구분선 ── */
+hr { border: none; border-top: 1px solid var(--border); margin: 0; }
+</style>
+</head>
+<body>
+
+<div class="zoom-overlay" id="zoomOverlay" onclick="closeZoom()">
+  <img id="zoomImg" src="">
+</div>
+
+<div class="app">
+  <!-- 사이드바 -->
+  <aside class="sidebar">
+    <div class="logo">STUDIO AI</div>
+
+    <!-- 원본 이미지 -->
+    <div class="section">
+      <div class="section-label">원본 이미지</div>
+      <div class="upload-area" id="faceBox">
+        <input type="file" accept="image/*" onchange="loadImg(this)">
+        <div class="upload-placeholder" id="uploadPh">
+          <div class="icon">＋</div>
+          그록 이미지 업로드
+        </div>
+        <img id="facePreview" class="upload-preview">
+      </div>
+    </div>
+
+    <!-- 프리셋 -->
+    <div class="section">
+      <div class="section-label">프리셋</div>
+      <div class="tab-scroll" id="tabs"></div>
+      <div class="preset-grid" id="presets"></div>
+    </div>
+
+    <!-- 프롬프트 -->
+    <div class="section">
+      <div class="section-label">프롬프트</div>
+      <textarea id="prompt">beautiful korean woman, photorealistic, high quality, soft lighting, fashion photography</textarea>
+    </div>
+
+    <!-- API -->
+    <div class="section">
+      <div class="section-label">Siray API 키</div>
+      <input type="password" id="apiKey" placeholder="sk-...">
+    </div>
+
+    <!-- 배치 + 생성 -->
+    <div class="section">
+      <div class="batch-row" style="margin-bottom:10px">
+        <button class="batch-btn on" onclick="setBatch(1)" id="b1">1장</button>
+        <button class="batch-btn" onclick="setBatch(2)" id="b2">2장</button>
+      </div>
+      <button class="gen-btn" id="genBtn" onclick="generate()">생성</button>
+    </div>
+  </aside>
+
+  <!-- 메인 -->
+  <main class="main">
+    <!-- 결과 -->
+    <div class="result-row" id="resultRow">
+      <div class="slot" id="slot0"><div class="slot-empty">—</div></div>
+      <div class="slot" id="slot1" style="display:none"><div class="slot-empty">—</div></div>
+    </div>
+
+    <!-- 갤러리 -->
+    <div class="gallery-header">
+      <div class="gallery-title">저장된 이미지</div>
+      <button class="clear-btn" onclick="clearSaved()">전체 삭제</button>
+    </div>
+    <div class="gallery-grid" id="savedGrid"></div>
+  </main>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+const CATS = {
+  '서기': [
+    { label: '손 허리', tag: 'standing with hands on hips, confident pose, full body shot' },
+    { label: '팔짱', tag: 'standing with arms crossed, full body shot' },
+    { label: '뒷짐', tag: 'standing with hands behind back, elegant pose, full body shot' },
+    { label: '주머니', tag: 'standing with hands in pockets, casual pose, full body shot' },
+    { label: '콘트라포스토', tag: 'contrapposto standing pose, fashion model pose, full body shot' },
+    { label: '팔 벌리기', tag: 'standing with arms outstretched, full body shot' },
+    { label: '뒤돌아', tag: 'standing back to camera, looking over shoulder, full body shot' },
+    { label: '한손 올려', tag: 'standing with one arm raised above head, full body shot' },
+    { label: '스트레칭', tag: 'standing stretching arms above head, arching back, full body shot' },
+    { label: '발레 자세', tag: 'standing in ballet pose, en pointe, graceful full body shot' },
+    { label: '모델 워킹', tag: 'mid-stride walking pose, runway model walk, full body shot' },
+    { label: '턱 괴기', tag: 'standing hand on chin, thoughtful pose, full body shot' },
+    { label: '머리 넘기기', tag: 'standing running hand through hair, casual pose, full body shot' },
+    { label: '벽 짚기', tag: 'standing with hand against wall, leaning slightly, full body shot' },
+    { label: '승리 포즈', tag: 'standing feet apart arms raised, victory pose, full body shot' },
+  ],
+  '앉기': [
+    { label: '양반다리', tag: 'sitting cross-legged on floor, full body shot' },
+    { label: '의자 앞', tag: 'sitting on edge of chair leaning forward, full body shot' },
+    { label: '나른하게', tag: 'sitting legs stretched out leaning back on hands, full body shot' },
+    { label: '거꾸로', tag: 'sitting backwards on chair, cool casual pose, full body shot' },
+    { label: '무릎 모아', tag: 'sitting with knees pulled to chest, full body shot' },
+    { label: '다리 교차', tag: 'sitting with legs crossed, elegant pose, full body shot' },
+    { label: '다리 걸터', tag: 'sitting with legs dangling off edge, full body shot' },
+    { label: '한쪽 무릎', tag: 'sitting with one knee raised, casual pose, full body shot' },
+    { label: '뒤로 기대', tag: 'sitting leaning back on both hands, relaxed pose, full body shot' },
+    { label: '발바닥 마주', tag: 'sitting in butterfly pose, soles touching, full body shot' },
+    { label: '옆으로', tag: 'sitting sideways on chair, casual elegant pose, full body shot' },
+    { label: '계단에', tag: 'sitting on steps, casual outdoor pose, full body shot' },
+    { label: '털썩', tag: 'slumped sitting on floor, relaxed casual pose, full body shot' },
+    { label: '다리 벌리고', tag: 'sitting with legs spread apart, casual floor sitting, full body shot' },
+  ],
+  '눕기': [
+    { label: '반듯이', tag: 'lying on back arms at sides, full body shot' },
+    { label: '엎드려', tag: 'lying on stomach, head resting on arms, full body shot' },
+    { label: '옆으로', tag: 'lying on side head propped on hand, relaxed pose, full body shot' },
+    { label: '침대 위', tag: 'lying on bed, relaxed pose, bedroom setting, full body shot' },
+    { label: '소파에', tag: 'lying on sofa, casual relaxed pose, full body shot' },
+    { label: '팔 뻗어', tag: 'lying on back with arms stretched overhead, full body shot' },
+    { label: '엎드려 팔꿈치', tag: 'lying on stomach propped up on elbows, full body shot' },
+    { label: '발 들어올려', tag: 'lying on stomach with legs raised up, playful pose, full body shot' },
+    { label: '웅크려', tag: 'lying in fetal position, curled up, full body shot' },
+    { label: '대자로', tag: 'lying spread-eagle on back, full body shot' },
+    { label: '옆으로 S라인', tag: 'lying on side with S-curve body line, full body shot' },
+  ],
+  '기대기': [
+    { label: '벽에', tag: 'leaning against wall one foot up, casual cool pose, full body shot' },
+    { label: '테이블에', tag: 'leaning on table both hands, leaning forward pose, full body shot' },
+    { label: '문가에', tag: 'leaning in doorway arms crossed, confident pose, full body shot' },
+    { label: '창가에', tag: 'leaning against window, soft backlight, full body shot' },
+    { label: '난간에', tag: 'leaning on railing, outdoor balcony pose, full body shot' },
+    { label: '차에', tag: 'leaning against car, cool outdoor pose, full body shot' },
+    { label: '기둥에', tag: 'leaning against pillar, fashion pose, full body shot' },
+    { label: '뒤로', tag: 'leaning back against surface, arching back slightly, full body shot' },
+  ],
+  '무릎': [
+    { label: '한쪽 무릎', tag: 'kneeling on one knee, dynamic pose, full body shot' },
+    { label: '양 무릎', tag: 'kneeling on both knees, full body shot' },
+    { label: '스쿼트', tag: 'deep squat pose, full body shot' },
+    { label: '쪼그려', tag: 'crouching on balls of feet, street style pose, full body shot' },
+    { label: '정좌', tag: 'kneeling sitting on heels, seiza pose, full body shot' },
+    { label: '한발 무릎', tag: 'one knee up one knee down, dynamic kneeling pose, full body shot' },
+    { label: '앞으로 손', tag: 'kneeling reaching forward with both hands, full body shot' },
+  ],
+  '심화': [
+    { label: '위에서 내려다', tag: 'lying on back looking up at camera, overhead shot pose, full body shot' },
+    { label: '허리 활처럼', tag: 'standing arching back dramatically, bow pose, full body shot' },
+    { label: '손 머리 위', tag: 'hands clasped above head, body stretched, full body shot' },
+    { label: '무릎 상체 젖혀', tag: 'kneeling with upper body arched back, full body shot' },
+    { label: '다리 높이 들어', tag: 'standing with one leg raised high, ballerina pose, full body shot' },
+    { label: '엎드려 상체 들기', tag: 'lying on stomach lifting upper body with arms, cobra pose, full body shot' },
+    { label: '등 대고 앉아', tag: 'sitting with back against wall, knees up, full body shot' },
+    { label: '몸 비틀기', tag: 'standing twisting at the waist, looking back, full body shot' },
+    { label: '한발 올리기', tag: 'standing with one foot propped up on surface, casual pose, full body shot' },
+    { label: '점프', tag: 'jumping pose mid-air, energetic, full body shot' },
+    { label: '걷는 중', tag: 'mid-stride walking pose, natural candid, full body shot' },
+    { label: '춤추듯', tag: 'dancing pose, fluid movement, full body shot' },
+  ],
+  '의상': [
+    { label: '캐주얼', tag: 'wearing casual outfit, jeans and t-shirt, street style' },
+    { label: '드레스', tag: 'wearing elegant dress, fashion photography' },
+    { label: '비키니', tag: 'wearing bikini, beach setting, summer' },
+    { label: '속옷', tag: 'wearing lingerie, boudoir photography, soft lighting' },
+    { label: '교복', tag: 'wearing school uniform, cute style' },
+    { label: '운동복', tag: 'wearing sportswear, athletic outfit, gym setting' },
+    { label: '수영복', tag: 'wearing swimsuit, poolside, summer vibes' },
+    { label: '미니스커트', tag: 'wearing mini skirt, fashion style, full body shot' },
+    { label: '오피스룩', tag: 'wearing office outfit, blazer and skirt, professional style' },
+    { label: '원피스', tag: 'wearing summer dress, floral print, casual chic' },
+    { label: '가죽 재킷', tag: 'wearing leather jacket, edgy street style' },
+  ],
+  '배경': [
+    { label: '스튜디오', tag: 'studio background, clean white background, professional lighting' },
+    { label: '침실', tag: 'bedroom setting, cozy interior, warm lighting' },
+    { label: '해변', tag: 'beach setting, ocean background, golden hour' },
+    { label: '카페', tag: 'cafe interior, warm atmosphere, cozy setting' },
+    { label: '도시', tag: 'urban street background, city setting, outdoor' },
+    { label: '자연', tag: 'nature background, outdoor greenery, soft natural lighting' },
+    { label: '수영장', tag: 'poolside setting, luxury pool, summer atmosphere' },
+    { label: '호텔', tag: 'luxury hotel room, premium interior, elegant setting' },
+    { label: '욕실', tag: 'bathroom setting, marble interior, soft lighting' },
+    { label: '옥상', tag: 'rooftop setting, city skyline background, outdoor' },
+  ],
+  '촬영': [
+    { label: '전신', tag: 'full body shot, head to toe' },
+    { label: '상반신', tag: 'upper body shot, waist up' },
+    { label: '클로즈업', tag: 'close-up portrait shot, face and shoulders' },
+    { label: '옆모습', tag: 'side profile shot, lateral view' },
+    { label: '뒤태', tag: 'back view shot, from behind' },
+    { label: '로우앵글', tag: 'low angle shot, looking up' },
+    { label: '하이앵글', tag: 'high angle shot, looking down' },
+    { label: '반신', tag: 'half body shot, thigh up' },
+  ],
+  '분위기': [
+    { label: '패션화보', tag: 'fashion editorial style, magazine quality, professional photography' },
+    { label: '자연광', tag: 'natural lighting, soft daylight, window light' },
+    { label: '골든아워', tag: 'golden hour lighting, warm sunset light' },
+    { label: '무드', tag: 'moody lighting, dramatic shadows, cinematic' },
+    { label: '청순', tag: 'innocent cute style, soft pastel tones, gentle expression' },
+    { label: '섹시', tag: 'sexy confident expression, alluring pose, glamour style' },
+    { label: '화보', tag: 'pictorial photography style, high fashion, editorial look' },
+    { label: '필름', tag: 'film photography style, grain texture, vintage tone' },
+    { label: '새벽감성', tag: 'late night mood, dim ambient light, intimate atmosphere' },
+  ],
+};
+
+let selectedTags = new Set(), batchCount = 1, faceDataUrl = null, activeTab = '서기';
+
+function initUI() { renderTabs(); renderPresets(activeTab); }
+function renderTabs() {
+  $('tabs').innerHTML = Object.keys(CATS).map(t =>
+    `<button class="ptab${t===activeTab?' on':''}" onclick="selTab('${t}')">${t}</button>`
+  ).join('');
+}
+function selTab(t) { activeTab = t; renderTabs(); renderPresets(t); }
+function renderPresets(tab) {
+  $('presets').innerHTML = CATS[tab].map(p =>
+    `<button class="preset-btn${selectedTags.has(p.tag)?' on':''}" onclick="selPreset('${p.tag.replace(/'/g,"\\'")}',this)">${p.label}</button>`
+  ).join('');
+}
+function selPreset(tag, el) {
+  if (selectedTags.has(tag)) { selectedTags.delete(tag); el.classList.remove('on'); }
+  else { selectedTags.add(tag); el.classList.add('on'); }
+  updatePrompt();
+}
+function updatePrompt() {
+  const base = 'beautiful korean woman, photorealistic, high quality, soft lighting, fashion photography';
+  const tags = Array.from(selectedTags).join(', ');
+  $('prompt').value = tags ? `${base}, ${tags}` : base;
+}
+function loadImg(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    faceDataUrl = e.target.result;
+    $('facePreview').src = faceDataUrl; $('facePreview').style.display = 'block';
+    $('uploadPh').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+function setBatch(n) {
+  batchCount = n;
+  $('b1').classList.toggle('on', n===1); $('b2').classList.toggle('on', n===2);
+  $('slot1').style.display = n===2 ? 'block' : 'none';
+}
+function setSlotStatus(idx, msg) {
+  $(`slot${idx}`).innerHTML = `<div class="slot-status">${msg}</div>`;
+}
+function setSlotImg(idx, url) {
+  const slot = $(`slot${idx}`);
+  const img = document.createElement('img');
+  img.src = url; img.onclick = () => openZoom(url);
+  const acts = document.createElement('div'); acts.className = 'slot-actions';
+  const dlB = document.createElement('button'); dlB.className = 'slot-action-btn'; dlB.textContent = '다운로드';
+  dlB.onclick = e => { e.stopPropagation(); dl(url, idx); };
+  const useB = document.createElement('button'); useB.className = 'slot-action-btn primary'; useB.textContent = '원본으로';
+  useB.onclick = e => { e.stopPropagation(); useAsSource(url); };
+  acts.appendChild(dlB); acts.appendChild(useB);
+  slot.innerHTML = ''; slot.appendChild(img); slot.appendChild(acts);
+  saveImage(url);
+}
+function dl(url, idx) { const a = document.createElement('a'); a.href = url; a.download = `studio_${idx+1}.png`; a.click(); }
+function openZoom(url) { $('zoomImg').src = url; $('zoomOverlay').classList.add('on'); }
+function closeZoom() { $('zoomOverlay').classList.remove('on'); }
+function useAsSource(url) {
+  fetch(url).then(r=>r.blob()).then(blob=>{
+    const reader = new FileReader();
+    reader.onload = e => {
+      faceDataUrl = e.target.result;
+      $('facePreview').src = faceDataUrl; $('facePreview').style.display = 'block';
+      $('uploadPh').style.display = 'none';
+      $('faceBox').scrollIntoView({ behavior:'smooth', block:'center' });
+    };
+    reader.readAsDataURL(blob);
+  }).catch(()=>{
+    faceDataUrl = url;
+    $('facePreview').src = url; $('facePreview').style.display = 'block';
+    $('uploadPh').style.display = 'none';
+  });
+}
+
+// 저장 갤러리
+let savedImages = JSON.parse(localStorage.getItem('studioSaved') || '[]');
+function renderSaved() {
+  const grid = $('savedGrid');
+  if (!savedImages.length) { grid.innerHTML = '<div style="color:var(--muted);font-size:12px;grid-column:1/-1;padding:16px 0">아직 저장된 이미지가 없습니다</div>'; return; }
+  grid.innerHTML = savedImages.map((url, i) => `
+    <div class="gallery-item">
+      <img src="${url}" onclick="openZoom('${url}')">
+      <div class="gallery-item-actions">
+        <button class="gi-btn primary" onclick="useAsSource('${url}')">원본으로</button>
+        <button class="gi-btn" onclick="dl('${url}',${i})">다운로드</button>
+        <button class="gi-btn danger" onclick="deleteSaved(${i})">삭제</button>
+      </div>
+    </div>`).join('');
+}
+function saveImage(url) {
+  savedImages.unshift(url);
+  if (savedImages.length > 50) savedImages = savedImages.slice(0, 50);
+  localStorage.setItem('studioSaved', JSON.stringify(savedImages));
+  renderSaved();
+}
+function deleteSaved(idx) { savedImages.splice(idx,1); localStorage.setItem('studioSaved',JSON.stringify(savedImages)); renderSaved(); }
+function clearSaved() { if(!confirm('전체 삭제할까요?')) return; savedImages=[]; localStorage.setItem('studioSaved','[]'); renderSaved(); }
+
+// API
+async function pollJob(apiKey, taskId, idx) {
+  for (let i = 0; i < 60; i++) {
+    await new Promise(r => setTimeout(r, 3000));
+    const res = await fetch(`/api/proxy/v1/images/generations/async/${taskId}`, {
+      headers: { 'Authorization': `Bearer ${apiKey}` }
+    });
+    const data = await res.json();
+    const status = data.data?.status || '';
+    if (status === 'SUCCESS') {
+      const url = data.data?.outputs?.[0];
+      if (url) setSlotImg(idx, url);
+      else setSlotStatus(idx, '완료됐는데 URL 없음');
+      return;
+    } else if (status === 'FAILURE') {
+      setSlotStatus(idx, '실패: ' + (data.data?.fail_reason || '알 수 없음'));
+      return;
+    }
+    setSlotStatus(idx, `생성 중... ${status}`);
+  }
+  setSlotStatus(idx, '타임아웃');
+}
+async function runJob(apiKey, prompt, faceUrl, idx) {
+  setSlotStatus(idx, '요청 중...');
+  try {
+    const res = await fetch('/api/proxy/v1/images/generations/async', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'bytedance/seedream-4.5-ref2i-spicy', prompt, images: [faceUrl], size: '1664x2498' })
+    });
+    const data = await res.json();
+    const taskId = data.task_id || data.id || data.data?.task_id;
+    if (taskId) await pollJob(apiKey, taskId, idx);
+    else setSlotStatus(idx, '에러: ' + JSON.stringify(data).slice(0, 150));
+  } catch(e) { setSlotStatus(idx, '에러: ' + e.message); }
+}
+async function generate() {
+  const apiKey = $('apiKey').value.trim();
+  if (!apiKey) { alert('API 키를 입력해주세요'); return; }
+  if (!faceDataUrl) { alert('이미지를 업로드해주세요'); return; }
+  const prompt = $('prompt').value;
+  const btn = $('genBtn'); btn.disabled = true; btn.textContent = '생성 중...';
+  const jobs = [];
+  for (let i = 0; i < batchCount; i++) jobs.push(runJob(apiKey, prompt, faceDataUrl, i));
+  await Promise.all(jobs);
+  btn.disabled = false; btn.textContent = '생성';
+}
+
+initUI(); renderSaved();
+</script>
+</body>
+</html>
