@@ -256,34 +256,30 @@ textarea:focus { outline: none; border-color: var(--accent); }
   position: fixed;
   background: #1a1a2e;
   border: 1px solid var(--accent);
-  border-radius: 10px;
-  padding: 6px;
+  border-radius: 8px;
+  padding: 8px 12px;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.15s;
   z-index: 9000;
   box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-  text-align: center;
-}
-.pose-tooltip img {
-  width: 100px; height: 140px;
-  object-fit: cover;
-  border-radius: 6px;
-  display: block;
+  max-width: 200px;
 }
 .pose-tooltip .tip-label {
-  font-size: 11px; color: #c084fc;
-  margin-top: 5px; padding: 0 4px;
-  max-width: 100px;
+  font-size: 12px; color: #c084fc;
+  font-weight: 500; margin-bottom: 3px;
+}
+.pose-tooltip .tip-desc {
+  font-size: 11px; color: #aaa;
+  line-height: 1.4;
   white-space: normal;
-  line-height: 1.3;
 }
 .pose-tooltip.on { opacity: 1; }
 </style>
 </head>
 <body>
 
-<div class="pose-tooltip" id="poseTooltip"><img id="tooltipImg" src=""><div class="tip-label" id="tooltipLabel"></div></div>
+<div class="pose-tooltip" id="poseTooltip"><div class="tip-label" id="tooltipLabel"></div><div class="tip-desc" id="tooltipDesc"></div></div>
 <div class="zoom-overlay" id="zoomOverlay" onclick="closeZoom()">
   <img id="zoomImg" src="">
 </div>
@@ -648,20 +644,19 @@ function renderTabs() {
 function selTab(t) { activeTab = t; renderTabs(); renderPresets(t); }
 function renderPresets(tab) {
   $('presets').innerHTML = CATS[tab].map(p => {
-    const imgKey = p.tag.split(',')[0].trim().replace(/\s+/g, '+');
+    const desc = (p.desc || p.tag.split(',').slice(0,2).join(', ')).replace(/'/g, '');
     return `<button class="preset-btn${selectedTags.has(p.tag)?' on':''}" 
       onclick="selPreset('${p.tag.replace(/'/g,"\\'")}',this)"
-      onmouseenter="showPoseTip(event,'${imgKey}','${p.label}')"
+      onmouseenter="showPoseTip(event,'${p.label}','${desc}')"
       onmouseleave="hidePoseTip()"
     >${p.label}</button>`;
   }).join('');
 }
 
-function showPoseTip(e, imgKey, label) {
+function showPoseTip(e, label, desc) {
   const t = $('poseTooltip');
-  const img = $('tooltipImg');
   $('tooltipLabel').textContent = label;
-  img.src = 'https://source.unsplash.com/100x140/?' + imgKey + ',woman,pose';
+  $('tooltipDesc').textContent = desc;
   t.classList.add('on');
   moveTip(e);
 }
@@ -681,6 +676,13 @@ document.addEventListener('mousemove', e => {
 function selPreset(tag, el) {
   if (selectedTags.has(tag)) { selectedTags.delete(tag); el.classList.remove('on'); }
   else { selectedTags.add(tag); el.classList.add('on'); }
+  updatePromptPreview();
+}
+
+function updatePromptPreview() {
+  const tags = Array.from(selectedTags).join(', ');
+  $('prompt').value = tags;
+  $('prompt').style.color = tags ? 'var(--text)' : '';
 }
 
 // 업로드
