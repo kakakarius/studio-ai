@@ -558,6 +558,59 @@ let selectedTags = new Set(), faceDataUrls = [null, null];
 let customPresets = JSON.parse(localStorage.getItem('customPresets') || '[]');
 let presetThumbData = null;
 let presetFilter = '전체';
+
+// 처음 한 번만 자동으로 채워지는 기본 프리셋 세트 (얼굴/피부/헤어/체형/나이대/화질/포즈)
+const DEFAULT_PRESETS = [
+  { name: '갸름한 얼굴', category: '얼굴', tag: 'oval face, high cheekbones, almond-shaped eyes, straight nose, full lips' },
+  { name: '동글동글', category: '얼굴', tag: 'round face, soft jawline, big round eyes, button nose' },
+  { name: '샤프한 얼굴', category: '얼굴', tag: 'sharp angular face, defined jawline, hooded eyes, thin lips' },
+  { name: '하트형 얼굴', category: '얼굴', tag: 'heart-shaped face, wide-set eyes, small nose, dimples' },
+
+  { name: '동양적 피부', category: '피부/인종', tag: 'east asian features, fair skin' },
+  { name: '태닝 피부', category: '피부/인종', tag: 'tanned skin, mediterranean features' },
+  { name: '주근깨 창백피부', category: '피부/인종', tag: 'pale skin, freckles across nose and cheeks' },
+  { name: '올리브 톤', category: '피부/인종', tag: 'olive skin tone, latina features' },
+
+  { name: '긴 웨이브 브라운', category: '헤어', tag: 'long wavy brown hair' },
+  { name: '단발 블랙밥', category: '헤어', tag: 'straight black bob haircut' },
+  { name: '오번 컬', category: '헤어', tag: 'curly auburn hair, shoulder length' },
+  { name: '플래티넘 블론드', category: '헤어', tag: 'platinum blonde hair, high ponytail' },
+  { name: '다크헤어 웨이브', category: '헤어', tag: 'dark hair with soft bangs, loose waves' },
+
+  { name: '슬림 롱다리', category: '체형', tag: 'tall slender build, long legs' },
+  { name: '아담 글래머', category: '체형', tag: 'petite frame, hourglass figure' },
+  { name: '탄탄 애슬릿', category: '체형', tag: 'athletic toned build' },
+  { name: '커브 실루엣', category: '체형', tag: 'curvy figure, soft silhouette' },
+
+  { name: '20대 초반', category: '나이/분위기', tag: 'early 20s, youthful features' },
+  { name: '20대 중반', category: '나이/분위기', tag: 'mid 20s, mature elegant features' },
+  { name: '20대 후반', category: '나이/분위기', tag: 'late 20s, sophisticated look' },
+
+  { name: '리얼리즘 톤', category: '화질', tag: 'natural skin texture, visible pores, subtle imperfections, candid photo, shot on iPhone, film grain, unedited, raw photo' },
+
+  { name: '손 허리', category: '포즈', tag: 'standing with hands on hips, confident pose, full body shot' },
+  { name: '팔짱', category: '포즈', tag: 'standing with arms crossed, full body shot' },
+  { name: '콘트라포스토', category: '포즈', tag: 'contrapposto standing pose, fashion model pose, full body shot' },
+  { name: '양반다리 앉기', category: '포즈', tag: 'sitting cross-legged on floor, full body shot' },
+  { name: '의자 앞으로 기대', category: '포즈', tag: 'sitting on edge of chair leaning forward, full body shot' },
+  { name: '나른하게 눕기', category: '포즈', tag: 'lying on side head propped on hand, relaxed pose, full body shot' },
+  { name: '벽에 기대기', category: '포즈', tag: 'leaning against wall one foot up, casual cool pose, full body shot' },
+  { name: '뒤돌아 어깨너머', category: '포즈', tag: 'looking back over shoulder, back view, full body shot' },
+  { name: '모델 워킹', category: '포즈', tag: 'mid-stride walking pose, runway model walk, full body shot' },
+  { name: '한쪽 무릎 꿇기', category: '포즈', tag: 'kneeling on one knee, dynamic pose, full body shot' },
+];
+// 딱 한 번만 실행 — 이후 사용자가 지우면 다시 안 채워짐
+function seedDefaultPresets() {
+  if (localStorage.getItem('defaultPresetsSeeded_v1') === '1') return;
+  const existingTags = new Set(customPresets.map(p => p.tag));
+  DEFAULT_PRESETS.forEach(p => {
+    if (!existingTags.has(p.tag)) {
+      customPresets.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ...p, thumb: null });
+    }
+  });
+  localStorage.setItem('customPresets', JSON.stringify(customPresets));
+  localStorage.setItem('defaultPresetsSeeded_v1', '1');
+}
 let genCount = parseInt(localStorage.getItem('genCount') || '0');
 // 기존에 문자열 배열(url만)로 저장돼 있던 데이터도 {url, prompt} 형태로 자연스럽게 승격
 function migrateGalleryEntries(arr) {
@@ -575,7 +628,7 @@ let collapsedSections = {};
 // 생성 카운터
 $('genCount').textContent = genCount;
 
-function initUI() { renderPresets(); renderModelSelect(); renderSaved(); renderHistory(); }
+function initUI() { seedDefaultPresets(); renderPresets(); renderModelSelect(); renderSaved(); renderHistory(); }
 
 function renderModelSelect() {
   $('modelSelect').innerHTML = Object.entries(MODELS).map(([key, m]) =>
