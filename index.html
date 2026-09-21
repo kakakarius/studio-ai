@@ -833,8 +833,13 @@ function setSlotImg(idx, url, prompt) {
   saveImage(url, prompt);
 }
 
+// media-v2.siray.ai 등 외부 이미지 호스트는 CORS를 안 열어줘서 직접 fetch가 막힘 —
+// 같은 도메인의 /api/img-proxy를 거쳐 가져오면 브라우저 CORS 제약을 안 받음
+function proxiedFetchUrl(url) {
+  return url.startsWith('http') ? '/api/img-proxy?url=' + encodeURIComponent(url) : url;
+}
 function dl(url) {
-  fetch(url).then(r=>r.blob()).then(blob=>{
+  fetch(proxiedFetchUrl(url)).then(r=>r.blob()).then(blob=>{
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'studio_' + Date.now() + '.png'; a.click();
@@ -849,7 +854,7 @@ function closeZoom() { $('zoomOverlay').classList.remove('on'); $('zoomImg').src
 function useAsSource(url, idx) {
   idx = idx !== undefined ? idx : (faceDataUrls[0] ? 1 : 0);
   idx = Math.min(idx, 1);
-  fetch(url).then(r=>r.blob()).then(blob=>{
+  fetch(proxiedFetchUrl(url)).then(r=>r.blob()).then(blob=>{
     const reader = new FileReader();
     reader.onload = e => {
       faceDataUrls[idx] = e.target.result;
