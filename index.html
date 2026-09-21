@@ -409,7 +409,7 @@ textarea#prompt { border-radius: 0 0 10px 10px; }
 <header>
   <div class="logo">Studio AI</div>
   <div class="header-right">
-    <div class="counter-badge">생성 횟수 <span id="genCount">0</span></div>
+    <div class="counter-badge" ondblclick="resetGenCount()" title="더블클릭하면 초기화">생성 횟수 <span id="genCount">0</span></div>
     <div class="counter-badge" id="modelBadge">Seedream 5.0 Pro</div>
   </div>
 </header>
@@ -730,6 +730,12 @@ document.addEventListener('paste', e => {
 
 // 시드
 function randomSeed() { $('seedInput').value = Math.floor(Math.random() * 2147483647); }
+function resetGenCount() {
+  if (!confirm('생성 횟수를 0으로 초기화할까요?')) return;
+  genCount = 0;
+  localStorage.setItem('genCount', 0);
+  $('genCount').textContent = 0;
+}
 
 // 슬롯
 function setSlotStatus(idx, msg, pct) {
@@ -904,13 +910,27 @@ function reuseHistory(idx) {
 
 // API
 async function pollJob(taskId, idx) {
+  let failCount = 0;
   for (let i = 0; i < 60; i++) {
     await new Promise(r => setTimeout(r, 3000));
     const pct = Math.min(10 + i * 3, 90);
-    const res = await fetch(`/api/proxy/v1/images/generations/async/${taskId}`, {
-      headers: { 'Authorization': `Bearer ${API_KEY}` }
-    });
-    const data = await res.json();
+    let data;
+    try {
+      const res = await fetch(`/api/proxy/v1/images/generations/async/${taskId}`, {
+        headers: { 'Authorization': `Bearer ${API_KEY}` }
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      data = await res.json();
+    } catch (e) {
+      failCount++;
+      if (failCount >= 5) {
+        setSlotStatus(idx, '연결 오류 반복 — 잠시 후 다시 시도해주세요', 0);
+        return null;
+      }
+      setSlotPct(idx, pct, '일시적 오류, 재시도 중...');
+      continue; // 이번 폴링만 건너뛰고 루프는 계속 진행
+    }
+    failCount = 0;
     const status = data.data?.status || '';
     if (status === 'SUCCESS') {
       setSlotPct(idx, 100, '완료');
@@ -965,12 +985,13 @@ async function generateSlot(idx) {
   if (btn.disabled) return; // 이미 이 슬롯에서 진행 중
   btn.disabled = true; btn.textContent = '생성 중...';
 
-  genCount += 1;
-  localStorage.setItem('genCount', genCount);
-  $('genCount').textContent = genCount;
-
   const resultUrl = await runJob(prompt, model.needsImage ? url : null, idx, seed, model.id);
-  if (resultUrl) addHistory(prompt, resultUrl);
+  if (resultUrl) {
+    addHistory(prompt, resultUrl);
+    genCount += 1;
+    localStorage.setItem('genCount', genCount);
+    $('genCount').textContent = genCount;
+  }
 
   btn.disabled = false; btn.textContent = `✦ 생성 ${idx + 1}`;
 }
