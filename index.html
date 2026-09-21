@@ -189,17 +189,17 @@ textarea:focus { outline: none; border-color: var(--accent); }
   background: rgba(0,0,0,0.6); border: none; color: #fff;
   width: 26px; height: 26px; border-radius: 50%; font-size: 13px;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
-  opacity: 0; transition: opacity 0.15s;
+  opacity: 0; pointer-events: none; transition: opacity 0.15s;
 }
-.gallery-item:hover .fav-btn { opacity: 1; }
-.gallery-item.favorited .fav-btn { opacity: 1; color: #f59e0b; }
+.gallery-item:hover .fav-btn { opacity: 1; pointer-events: auto; }
+.gallery-item.favorited .fav-btn { opacity: 1; pointer-events: auto; color: #f59e0b; }
 .gallery-overlay {
   position: absolute; inset: 0;
   background: linear-gradient(to top, rgba(0,0,0,0.88) 0%, transparent 55%);
-  opacity: 0; transition: opacity 0.15s;
+  opacity: 0; pointer-events: none; transition: opacity 0.15s;
   display: flex; flex-direction: column; justify-content: flex-end; padding: 8px; gap: 4px;
 }
-.gallery-item:hover .gallery-overlay { opacity: 1; }
+.gallery-item:hover .gallery-overlay { opacity: 1; pointer-events: auto; }
 .gi-btn {
   width: 100%; padding: 5px 6px; border-radius: 5px; font-size: 11px;
   cursor: pointer; font-family: inherit; text-align: center;
@@ -559,9 +559,14 @@ let customPresets = JSON.parse(localStorage.getItem('customPresets') || '[]');
 let presetThumbData = null;
 let presetFilter = '전체';
 let genCount = parseInt(localStorage.getItem('genCount') || '0');
-let savedImages = JSON.parse(localStorage.getItem('studioSaved') || '[]');
-let favorites = JSON.parse(localStorage.getItem('studioFavs') || '[]');
+// 기존에 문자열 배열(url만)로 저장돼 있던 데이터도 {url, prompt} 형태로 자연스럽게 승격
+function migrateGalleryEntries(arr) {
+  return arr.map(item => typeof item === 'string' ? { url: item, prompt: '' } : item);
+}
+let savedImages = migrateGalleryEntries(JSON.parse(localStorage.getItem('studioSaved') || '[]'));
+let favorites = migrateGalleryEntries(JSON.parse(localStorage.getItem('studioFavs') || '[]'));
 let sessionImages = [];
+let currentGalleryImages = [];
 let historyItems = [];
 let currentGallery = 'saved';
 let lastResultUrl = null;
@@ -807,7 +812,7 @@ function setSlotPct(idx, pct, msg) {
   const statusEl = $('slot' + idx).querySelector('.slot-status');
   if (statusEl && msg) statusEl.textContent = msg;
 }
-function setSlotImg(idx, url) {
+function setSlotImg(idx, url, prompt) {
   lastResultUrl = url;
   const slot = $(`slot${idx}`);
   const img = document.createElement('img');
@@ -821,11 +826,11 @@ function setSlotImg(idx, url) {
   const cmpB = document.createElement('button'); cmpB.className = 'slot-btn'; cmpB.textContent = '비교';
   cmpB.onclick = e => { e.stopPropagation(); showCompare(url, idx); };
   const favB = document.createElement('button'); favB.className = 'slot-btn'; favB.textContent = '⭐';
-  favB.onclick = e => { e.stopPropagation(); toggleFav(url); };
+  favB.onclick = e => { e.stopPropagation(); toggleFav(url, prompt); };
 
   acts.appendChild(dlB); acts.appendChild(useB); acts.appendChild(cmpB); acts.appendChild(favB);
   slot.innerHTML = ''; slot.appendChild(img); slot.appendChild(acts);
-  saveImage(url);
+  saveImage(url, prompt);
 }
 
 function dl(url) {
@@ -870,10 +875,10 @@ function showCompare(resultUrl, idx) {
 }
 
 // 즐겨찾기
-function toggleFav(url) {
-  const idx = favorites.indexOf(url);
+function toggleFav(url, prompt) {
+  const idx = favorites.findIndex(f => f.url === url);
   if (idx >= 0) favorites.splice(idx, 1);
-  else favorites.unshift(url);
+  else favorites.unshift({ url, prompt: prompt || '' });
   localStorage.setItem('studioFavs', JSON.stringify(favorites));
   renderSaved();
 }
@@ -898,31 +903,58 @@ function renderSaved() {
   const grid = $('savedGrid');
   const images = currentGallery === 'session' ? sessionImages :
                  currentGallery === 'favorites' ? favorites : savedImages;
+  currentGalleryImages = images;
   if (!images.length) {
     grid.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:20px 0">이미지가 없습니다</div>`;
     return;
   }
-  grid.innerHTML = images.map((url, i) => {
-    const isFav = favorites.includes(url);
-    return `<div class="gallery-item${isFav?' favorited':''}">
-      <img src="${url}" onclick="openZoom('${url}')">
-      <button class="fav-btn" onclick="toggleFav('${url}');this.closest('.gallery-item').classList.toggle('favorited')">${isFav?'⭐':'☆'}</button>
+  grid.innerHTML = images.map((entry, i) => {
+    const isFav = favorites.some(f => f.url === entry.url);
+    return `<div class="gallery-item${isFav?' favorited':''}" data-idx="${i}">
+      <img src="${entry.url}">
+      <button class="fav-btn" data-action="fav">${isFav?'⭐':'☆'}</button>
       <div class="gallery-overlay">
-        <button class="gi-btn primary" onclick="useAsSource('${url}')">원본으로</button>
-        <button class="gi-btn" onclick="dl('${url}')">다운로드</button>
-        ${currentGallery !== 'session' ? `<button class="gi-btn danger" onclick="deleteGallery('${url}',${i})">삭제</button>` : ''}
+        <button class="gi-btn primary" data-action="use">원본으로</button>
+        ${entry.prompt ? `<button class="gi-btn" data-action="reuse">프롬프트</button>` : ''}
+        <button class="gi-btn" data-action="dl">다운로드</button>
+        ${currentGallery !== 'session' ? `<button class="gi-btn danger" data-action="del">삭제</button>` : ''}
       </div>
     </div>`;
   }).join('');
 }
-function saveImage(url) {
-  sessionImages.unshift(url);
-  savedImages.unshift(url);
+// 그리드 전체에 이벤트 위임 — url/prompt에 따옴표가 섞여도 안전하고, 오버레이가 클릭을 가로채는 문제도 없음
+$('savedGrid').addEventListener('click', e => {
+  const item = e.target.closest('.gallery-item');
+  if (!item) return;
+  const entry = currentGalleryImages[parseInt(item.dataset.idx, 10)];
+  if (!entry) return;
+  const btn = e.target.closest('button');
+  if (btn) {
+    const action = btn.dataset.action;
+    if (action === 'fav') {
+      toggleFav(entry.url, entry.prompt);
+    } else if (action === 'use') {
+      useAsSource(entry.url);
+    } else if (action === 'reuse') {
+      $('prompt').value = entry.prompt || '';
+    } else if (action === 'dl') {
+      dl(entry.url);
+    } else if (action === 'del') {
+      deleteGallery(parseInt(item.dataset.idx, 10));
+    }
+    return;
+  }
+  if (e.target.tagName === 'IMG') openZoom(entry.url);
+});
+function saveImage(url, prompt) {
+  const entry = { url, prompt: prompt || '' };
+  sessionImages.unshift(entry);
+  savedImages.unshift(entry);
   if (savedImages.length > 100) savedImages = savedImages.slice(0, 100);
   localStorage.setItem('studioSaved', JSON.stringify(savedImages));
   renderSaved();
 }
-function deleteGallery(url, idx) {
+function deleteGallery(idx) {
   if (currentGallery === 'favorites') { favorites.splice(idx,1); localStorage.setItem('studioFavs',JSON.stringify(favorites)); }
   else { savedImages.splice(idx,1); localStorage.setItem('studioSaved',JSON.stringify(savedImages)); }
   renderSaved();
@@ -960,7 +992,7 @@ function reuseHistory(idx) {
 }
 
 // API
-async function pollJob(taskId, idx) {
+async function pollJob(taskId, idx, prompt) {
   let failCount = 0;
   for (let i = 0; i < 60; i++) {
     await new Promise(r => setTimeout(r, 3000));
@@ -987,7 +1019,7 @@ async function pollJob(taskId, idx) {
       setSlotPct(idx, 100, '완료');
       await new Promise(r => setTimeout(r, 300));
       const url = data.data?.outputs?.[0];
-      if (url) setSlotImg(idx, url);
+      if (url) setSlotImg(idx, url, prompt);
       else setSlotStatus(idx, 'URL 없음', 100);
       return url || null;
     } else if (status === 'FAILURE') {
@@ -1013,7 +1045,7 @@ async function runJob(prompt, faceUrl, idx, seed, modelId) {
     });
     const data = await res.json();
     const taskId = data.task_id || data.id || data.data?.task_id;
-    if (taskId) return await pollJob(taskId, idx);
+    if (taskId) return await pollJob(taskId, idx, prompt);
     setSlotStatus(idx, '에러: ' + JSON.stringify(data).slice(0, 150));
     return null;
   } catch(e) { setSlotStatus(idx, '에러: ' + e.message); return null; }
