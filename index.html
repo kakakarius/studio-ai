@@ -219,7 +219,7 @@ textarea:focus { outline: none; border-color: var(--accent); }
   transition: border-color 0.15s;
 }
 .history-item:hover { border-color: var(--accent); }
-.history-thumb { width: 36px; height: 48px; border-radius: 5px; object-fit: cover; flex-shrink: 0; }
+.history-thumb { width: 36px; height: 48px; border-radius: 5px; object-fit: cover; flex-shrink: 0; cursor: zoom-in; }
 .history-info { flex: 1; min-width: 0; }
 .history-tags { font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .history-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
@@ -349,6 +349,28 @@ textarea#prompt { border-radius: 0 0 10px 10px; }
 
 .slot-gen-btn { padding: 9px; font-size: 13px; }
 
+.preset-filter { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px; }
+.preset-filter-chip {
+  padding: 4px 11px; border-radius: 20px;
+  background: var(--surface); border: 1px solid var(--border2);
+  font-size: 11px; color: var(--muted); cursor: pointer; font-family: inherit;
+  transition: all 0.15s;
+}
+.preset-filter-chip.on { background: linear-gradient(135deg, var(--accent2), var(--accent)); border-color: transparent; color: #fff; }
+.preset-tag-label {
+  position: absolute; bottom: 2px; left: 2px;
+  background: rgba(0,0,0,0.65); color: #c084fc; font-size: 9px;
+  padding: 1px 5px; border-radius: 4px; pointer-events: none;
+}
+
+.save-as-preset-btn {
+  width: 100%; margin-top: 6px; padding: 8px; border-radius: 8px;
+  background: rgba(168,85,247,0.12); border: 1px dashed var(--accent);
+  color: #c084fc; font-size: 12px; cursor: pointer; font-family: inherit;
+  transition: all 0.15s;
+}
+.save-as-preset-btn:hover { background: rgba(168,85,247,0.2); }
+
 /* 프리셋 추가 모달 */
 .preset-modal-overlay {
   display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
@@ -391,6 +413,8 @@ textarea#prompt { border-radius: 0 0 10px 10px; }
     <div class="preset-modal-title">프리셋 추가</div>
     <label class="pm-label">이름</label>
     <input type="text" id="presetFormName" class="pm-input" placeholder="예: 손 허리">
+    <label class="pm-label">태그 (분류, 선택사항)</label>
+    <input type="text" id="presetFormCategory" class="pm-input" placeholder="예: 외모 / 포즈 / 의상">
     <label class="pm-label">프롬프트 (생성용 태그)</label>
     <textarea id="presetFormTag" class="pm-textarea" placeholder="예: standing with hands on hips, full body shot"></textarea>
     <label class="pm-label">썸네일</label>
@@ -444,6 +468,7 @@ textarea#prompt { border-radius: 0 0 10px 10px; }
 
       <!-- 중앙 -->
       <div>
+        <div class="preset-filter" id="presetFilter"></div>
         <div class="preset-wrap">
           <div class="preset-grid" id="presets"></div>
         </div>
@@ -452,6 +477,7 @@ textarea#prompt { border-radius: 0 0 10px 10px; }
             <span class="prompt-chips-empty" id="chipsEmpty">선택된 태그 없음</span>
           </div>
           <textarea id="prompt" placeholder="직접 입력 (선택사항)" style="min-height:50px"></textarea>
+          <button class="save-as-preset-btn" onclick="openPresetForm(true)">✦ 지금 이 프롬프트/결과를 프리셋으로 저장</button>
         </div>
       </div>
 
@@ -531,6 +557,7 @@ if (!MODELS[selectedModel]) selectedModel = 'seedream';
 let selectedTags = new Set(), faceDataUrls = [null, null];
 let customPresets = JSON.parse(localStorage.getItem('customPresets') || '[]');
 let presetThumbData = null;
+let presetFilter = '전체';
 let genCount = parseInt(localStorage.getItem('genCount') || '0');
 let savedImages = JSON.parse(localStorage.getItem('studioSaved') || '[]');
 let favorites = JSON.parse(localStorage.getItem('studioFavs') || '[]');
@@ -560,37 +587,60 @@ function updateModelBadge() {
   $('modelBadge').textContent = MODELS[selectedModel].label;
 }
 
+function renderPresetFilter() {
+  const cats = Array.from(new Set(customPresets.map(p => p.category).filter(Boolean)));
+  const el = $('presetFilter');
+  if (!cats.length) { el.innerHTML = ''; return; }
+  const chips = ['전체', ...cats].map(c =>
+    `<button class="preset-filter-chip${c===presetFilter?' on':''}" onclick="selPresetFilter('${c.replace(/'/g,"\\'")}')">${c}</button>`
+  ).join('');
+  el.innerHTML = chips;
+}
+function selPresetFilter(cat) { presetFilter = cat; renderPresetFilter(); renderPresets(); }
+
 function renderPresets() {
   const addTile = `<button class="preset-btn add-tile" onclick="openPresetForm()">
     <div class="preset-thumb-ph">＋</div>
     <span class="preset-btn-label">프리셋 추가</span>
   </button>`;
-  const items = customPresets.map(p => {
+  const visible = presetFilter === '전체' ? customPresets : customPresets.filter(p => p.category === presetFilter);
+  const items = visible.map(p => {
     const safeTag = p.tag.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     const desc = p.tag.replace(/'/g, '');
     const safeName = p.name.replace(/'/g, '');
     const thumbHtml = p.thumb
       ? `<img class="preset-thumb" src="${p.thumb}">`
       : `<div class="preset-thumb-ph">🖼</div>`;
+    const catLabel = p.category ? `<span class="preset-tag-label">${p.category}</span>` : '';
     return `<button class="preset-btn${selectedTags.has(p.tag)?' on':''}"
       onclick="selPreset('${safeTag}',this)"
       onmouseenter="showPoseTip(event,'${safeName}','${desc}')"
       onmouseleave="hidePoseTip()"
-    >${thumbHtml}<span class="preset-btn-label">${p.name}</span><span class="preset-del" onclick="event.stopPropagation();deletePreset('${p.id}')">×</span></button>`;
+    >${thumbHtml}${catLabel}<span class="preset-btn-label">${p.name}</span><span class="preset-del" onclick="event.stopPropagation();deletePreset('${p.id}')">×</span></button>`;
   }).join('');
   $('presets').innerHTML = addTile + items;
-  if (!customPresets.length) {
-    $('presets').insertAdjacentHTML('beforeend', '<div style="color:var(--muted);font-size:12px;align-self:center;margin-left:6px">아직 프리셋이 없습니다 — ＋ 버튼으로 추가하세요</div>');
+  if (!visible.length) {
+    $('presets').insertAdjacentHTML('beforeend', '<div style="color:var(--muted);font-size:12px;align-self:center;margin-left:6px">해당하는 프리셋이 없습니다</div>');
   }
+  renderPresetFilter();
 }
 
 // 프리셋 추가 모달
-function openPresetForm() {
+// fromCurrent: true면 지금 화면에 입력된 프롬프트/방금 생성된 결과 이미지를 그대로 가져와 채워줌
+function openPresetForm(fromCurrent) {
   presetThumbData = null;
   $('presetFormName').value = '';
-  $('presetFormTag').value = '';
-  $('presetFormThumbPreview').style.display = 'none';
-  $('presetFormThumbPh').style.display = 'flex';
+  $('presetFormCategory').value = '';
+  $('presetFormTag').value = fromCurrent ? buildPrompt() : '';
+  if (fromCurrent && lastResultUrl) {
+    presetThumbData = lastResultUrl;
+    $('presetFormThumbPreview').src = presetThumbData;
+    $('presetFormThumbPreview').style.display = 'block';
+    $('presetFormThumbPh').style.display = 'none';
+  } else {
+    $('presetFormThumbPreview').style.display = 'none';
+    $('presetFormThumbPh').style.display = 'flex';
+  }
   $('presetModal').classList.add('on');
 }
 function closePresetForm() { $('presetModal').classList.remove('on'); }
@@ -607,11 +657,12 @@ function loadPresetThumb(input) {
 }
 function savePreset() {
   const name = $('presetFormName').value.trim();
+  const category = $('presetFormCategory').value.trim();
   const tag = $('presetFormTag').value.trim();
   if (!name || !tag) { alert('이름과 프롬프트를 입력해주세요'); return; }
   customPresets.push({
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-    name, tag, thumb: presetThumbData
+    name, category, tag, thumb: presetThumbData
   });
   localStorage.setItem('customPresets', JSON.stringify(customPresets));
   closePresetForm();
@@ -895,7 +946,7 @@ function renderHistory() {
   if (!historyItems.length) { list.innerHTML = '<div style="color:var(--muted);font-size:13px">히스토리가 없습니다</div>'; return; }
   list.innerHTML = historyItems.map((h, i) => `
     <div class="history-item" onclick="reuseHistory(${i})">
-      <img class="history-thumb" src="${h.resultUrl}" onerror="this.style.display='none'">
+      <img class="history-thumb" src="${h.resultUrl}" onerror="this.style.display='none'" onclick="event.stopPropagation();openZoom('${h.resultUrl}')">
       <div class="history-info">
         <div class="history-tags">${h.prompt || '(프롬프트 없음)'}</div>
         <div class="history-meta">${h.time}</div>
