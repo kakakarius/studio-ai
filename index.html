@@ -485,6 +485,29 @@ textarea#prompt { border-radius: 0 0 10px 10px; }
       <div class="creator-right">
 
         <select class="model-select" id="modelSelect" onchange="onModelChange()"></select>
+        <div id="presetSizeControls" style="display:none">
+          <select class="model-select" id="sizeSelect">
+            <option value="1k">1k</option>
+            <option value="2k">2k</option>
+          </select>
+          <select class="model-select" id="aspectSelect">
+            <option>Square(1:1)</option>
+            <option>1:2</option>
+            <option>2:1</option>
+            <option>1:3</option>
+            <option>3:1</option>
+            <option>Book(2:3)</option>
+            <option>Photo(3:2)</option>
+            <option selected>Portrait(3:4)</option>
+            <option>Classic(4:3)</option>
+            <option>Vertical(4:5)</option>
+            <option>Art.Print(5:4)</option>
+            <option>Mobile(9:16)</option>
+            <option>WideScreen(16:9)</option>
+            <option>Story(9:21)</option>
+            <option>UltraWide(21:9)</option>
+          </select>
+        </div>
         <div class="seed-row">
           <label>시드</label>
           <input type="text" class="seed-input" id="seedInput" placeholder="랜덤">
@@ -549,7 +572,7 @@ const API_KEY = 'sk-fjtr6ko9e7DsTyWiap7LZcvDJFNONclstzI06Ef0flv5LJRv';
 const MODELS = {
   seedream: { id: 'bytedance/seedream-5.0-pro-i2i-spicy', label: 'Seedream 5.0 Pro (i2i)', needsImage: true },
   zimage:   { id: 'alibaba/z-image-spicy-pro-t2i', label: 'Z-Image Spicy Pro (t2i)', needsImage: false },
-  qwenedit: { id: 'alibaba/qwen-image-3-edit-spicy', label: 'Qwen-Image 3 Edit (i2i)', needsImage: true },
+  qwenedit: { id: 'alibaba/qwen-image-3-edit-spicy', label: 'Qwen-Image 3 Edit (i2i)', needsImage: true, sizeMode: 'preset' },
 };
 let selectedModel = localStorage.getItem('selectedModel') || 'seedream';
 if (!MODELS[selectedModel]) selectedModel = 'seedream';
@@ -636,11 +659,16 @@ function renderModelSelect() {
     `<option value="${key}"${key === selectedModel ? ' selected' : ''}>${m.label}</option>`
   ).join('');
   updateModelBadge();
+  toggleSizeControls();
 }
 function onModelChange() {
   selectedModel = $('modelSelect').value;
   localStorage.setItem('selectedModel', selectedModel);
   updateModelBadge();
+  toggleSizeControls();
+}
+function toggleSizeControls() {
+  $('presetSizeControls').style.display = MODELS[selectedModel].sizeMode === 'preset' ? 'block' : 'none';
 }
 function updateModelBadge() {
   $('modelBadge').textContent = MODELS[selectedModel].label;
@@ -1091,10 +1119,10 @@ async function pollJob(taskId, idx, prompt) {
   return null;
 }
 
-async function runJob(prompt, faceUrl, idx, seed, modelId) {
+async function runJob(prompt, faceUrl, idx, seed, modelId, sizeOpts) {
   setSlotStatus(idx, '요청 중...', 5);
   try {
-    const body = { model: modelId, prompt: prompt || 'photorealistic', size: '1664x2498' };
+    const body = { model: modelId, prompt: prompt || 'photorealistic', ...(sizeOpts || { size: '1664x2498' }) };
     if (faceUrl) body.images = [faceUrl];
     if (seed) body.seed = parseInt(seed);
     const res = await fetch('/api/proxy/v1/images/generations/async', {
@@ -1123,11 +1151,14 @@ async function generateSlot(idx) {
   if (model.needsImage && !url) { alert(`이미지 ${idx + 1}을(를) 업로드해주세요`); return; }
   const prompt = buildPrompt();
   const seed = $('seedInput').value.trim();
+  const sizeOpts = model.sizeMode === 'preset'
+    ? { size: $('sizeSelect').value, aspect_ratio: $('aspectSelect').value }
+    : { size: '1664x2498' };
   const btn = $('genBtn' + idx);
   if (btn.disabled) return; // 이미 이 슬롯에서 진행 중
   btn.disabled = true; btn.textContent = '생성 중...';
 
-  const resultUrl = await runJob(prompt, model.needsImage ? url : null, idx, seed, model.id);
+  const resultUrl = await runJob(prompt, model.needsImage ? url : null, idx, seed, model.id, sizeOpts);
   if (resultUrl) {
     addHistory(prompt, resultUrl);
     genCount += 1;
