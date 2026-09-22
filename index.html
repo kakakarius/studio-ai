@@ -1081,9 +1081,10 @@ function reuseHistory(idx) {
 // API
 async function pollJob(taskId, idx, prompt) {
   let failCount = 0;
-  for (let i = 0; i < 60; i++) {
+  const maxAttempts = 200; // 3초 간격 × 200회 = 최대 10분 대기
+  for (let i = 0; i < maxAttempts; i++) {
     await new Promise(r => setTimeout(r, 3000));
-    const pct = Math.min(10 + i * 3, 90);
+    const pct = Math.min(10 + Math.floor(i * 80 / maxAttempts), 90);
     let data;
     try {
       const res = await fetch(`/api/proxy/v1/images/generations/async/${taskId}`, {
@@ -1115,7 +1116,7 @@ async function pollJob(taskId, idx, prompt) {
     }
     setSlotPct(idx, pct, status === 'IN_PROGRESS' ? '생성 중...' : '대기 중...');
   }
-  setSlotStatus(idx, '타임아웃', 0);
+  setSlotStatus(idx, '타임아웃 (10분 초과) — 서버가 많이 밀린 것 같아요', 0);
   return null;
 }
 
