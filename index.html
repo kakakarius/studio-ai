@@ -549,6 +549,7 @@ const API_KEY = 'sk-fjtr6ko9e7DsTyWiap7LZcvDJFNONclstzI06Ef0flv5LJRv';
 const MODELS = {
   seedream: { id: 'bytedance/seedream-5.0-pro-i2i-spicy', label: 'Seedream 5.0 Pro (i2i)', needsImage: true },
   zimage:   { id: 'alibaba/z-image-spicy-pro-t2i', label: 'Z-Image Spicy Pro (t2i)', needsImage: false },
+  qwenedit: { id: 'alibaba/qwen-image-3-edit-spicy', label: 'Qwen-Image 3 Edit (i2i)', needsImage: true },
 };
 let selectedModel = localStorage.getItem('selectedModel') || 'seedream';
 if (!MODELS[selectedModel]) selectedModel = 'seedream';
